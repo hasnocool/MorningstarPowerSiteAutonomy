@@ -22,18 +22,32 @@ feedback_max_adjustment_fraction = 0.05
 [adaptive_world]
 # Adaptive World Model learns from read-only telemetry and retained forecasts.
 enabled = true
-# Run the heavier self-learning pass every six hours by default.
 interval_seconds = 21600
-# Historical window for seasonal/load/battery learning.
 history_days = 120
-# Retain exact per-model weather predictions out to this horizon.
 weather_horizon_hours = 72
-# Wait until the full 72h forecast has matured before scoring it.
 weather_evaluation_delay_hours = 84
-# Champion/challenger and uncertainty gates.
 minimum_samples = 48
 minimum_samples_per_cell = 4
 promotion_margin = 0.08
+
+[policy_lab]
+# Policy Lab learns which SHADOW policy performs best. It never executes hardware actions.
+enabled = true
+# Maximum mature Shadow Autopilot plans/evaluations used in each replay tournament.
+history_limit = 500
+# A challenger cannot be promoted before this many point-in-time replays mature.
+minimum_replays = 24
+max_candidates = 12
+promotion_margin = 0.08
+# Paired bootstrap resamples used for the >=95% promotion-confidence gate.
+bootstrap_samples = 400
+# Dynamic reserve is advisory and cannot exceed this configured planning ceiling.
+dynamic_reserve_max_percent = 60
+# Hard bounds for automatically generated policy candidates.
+reserve_min_percent = 10
+reserve_max_percent = 60
+morning_soc_min_percent = 25
+morning_soc_max_percent = 80
 
 [weather]
 base_url = "https://api.open-meteo.com/v1/forecast"
@@ -51,8 +65,6 @@ host = "127.0.0.1"
 port = 8091
 
 [sites.sys_default]
-# Legacy single-array values remain supported. If pv_arrays are configured below,
-# their rated_watts become authoritative for the PV model.
 array_watts = 910
 battery_capacity_wh = 4000
 reserve_percent = 25

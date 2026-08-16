@@ -1,4 +1,3 @@
-# src/powersite_autonomy/config.py
 from __future__ import annotations
 
 import os
@@ -44,6 +43,17 @@ class Settings:
     adaptive_minimum_samples: int = 48
     adaptive_minimum_samples_per_cell: int = 4
     adaptive_promotion_margin: float = 0.08
+    policy_lab_enabled: bool = True
+    policy_lab_history_limit: int = 500
+    policy_lab_minimum_replays: int = 24
+    policy_lab_max_candidates: int = 12
+    policy_lab_promotion_margin: float = 0.08
+    policy_lab_bootstrap_samples: int = 400
+    policy_lab_dynamic_reserve_max_percent: float = 60.0
+    policy_lab_reserve_min_percent: float = 10.0
+    policy_lab_reserve_max_percent: float = 60.0
+    policy_lab_morning_soc_min_percent: float = 25.0
+    policy_lab_morning_soc_max_percent: float = 80.0
 
 
 def _as_bool(value: Any, default: bool) -> bool:
@@ -88,6 +98,7 @@ def load_settings(path: str | Path = "config.toml") -> Settings:
     sentinel = raw.get("sentinel", {})
     shadow = raw.get("shadow_autopilot", {})
     adaptive = raw.get("adaptive_world", {})
+    policy_lab = raw.get("policy_lab", {})
     raw_sites = raw.get("sites", {})
 
     sites = {uid: SiteConfig.model_validate(value) for uid, value in raw_sites.items()}
@@ -99,7 +110,10 @@ def load_settings(path: str | Path = "config.toml") -> Settings:
         uid: [ManagedLoad.model_validate(item) for item in value.get("shadow_loads", [])]
         for uid, value in raw_sites.items()
     }
-    sentinel_url = os.getenv("AUTONOMY_SENTINEL_URL", sentinel.get("base_url", "")).strip()
+    sentinel_url = os.getenv(
+        "AUTONOMY_SENTINEL_URL",
+        sentinel.get("base_url", ""),
+    ).strip()
     return Settings(
         morningstar_base_url=os.getenv(
             "AUTONOMY_MORNINGSTAR_URL",
@@ -136,7 +150,10 @@ def load_settings(path: str | Path = "config.toml") -> Settings:
             ),
             True,
         ),
-        weather_base_url=weather.get("base_url", "https://api.open-meteo.com/v1/forecast"),
+        weather_base_url=weather.get(
+            "base_url",
+            "https://api.open-meteo.com/v1/forecast",
+        ),
         weather_archive_base_url=weather.get(
             "archive_base_url",
             "https://archive-api.open-meteo.com/v1/archive",
@@ -266,6 +283,95 @@ def load_settings(path: str | Path = "config.toml") -> Settings:
                     )
                 ),
             ),
+        ),
+        policy_lab_enabled=_as_bool(
+            os.getenv("AUTONOMY_POLICY_LAB_ENABLED", policy_lab.get("enabled", True)),
+            True,
+        ),
+        policy_lab_history_limit=max(
+            20,
+            min(
+                2000,
+                int(
+                    os.getenv(
+                        "AUTONOMY_POLICY_LAB_HISTORY_LIMIT",
+                        policy_lab.get("history_limit", 500),
+                    )
+                ),
+            ),
+        ),
+        policy_lab_minimum_replays=max(
+            6,
+            int(
+                os.getenv(
+                    "AUTONOMY_POLICY_LAB_MINIMUM_REPLAYS",
+                    policy_lab.get("minimum_replays", 24),
+                )
+            ),
+        ),
+        policy_lab_max_candidates=max(
+            2,
+            min(
+                48,
+                int(
+                    os.getenv(
+                        "AUTONOMY_POLICY_LAB_MAX_CANDIDATES",
+                        policy_lab.get("max_candidates", 12),
+                    )
+                ),
+            ),
+        ),
+        policy_lab_promotion_margin=max(
+            0.01,
+            min(
+                0.50,
+                float(
+                    os.getenv(
+                        "AUTONOMY_POLICY_LAB_PROMOTION_MARGIN",
+                        policy_lab.get("promotion_margin", 0.08),
+                    )
+                ),
+            ),
+        ),
+        policy_lab_bootstrap_samples=max(
+            100,
+            min(
+                5000,
+                int(
+                    os.getenv(
+                        "AUTONOMY_POLICY_LAB_BOOTSTRAP_SAMPLES",
+                        policy_lab.get("bootstrap_samples", 400),
+                    )
+                ),
+            ),
+        ),
+        policy_lab_dynamic_reserve_max_percent=max(
+            20.0,
+            min(
+                95.0,
+                float(
+                    os.getenv(
+                        "AUTONOMY_POLICY_LAB_DYNAMIC_RESERVE_MAX",
+                        policy_lab.get("dynamic_reserve_max_percent", 60),
+                    )
+                ),
+            ),
+        ),
+        policy_lab_reserve_min_percent=max(
+            0.0,
+            min(95.0, float(policy_lab.get("reserve_min_percent", 10))),
+        ),
+        policy_lab_reserve_max_percent=max(
+            0.0,
+            min(95.0, float(policy_lab.get("reserve_max_percent", 60))),
+        ),
+        policy_lab_morning_soc_min_percent=max(
+            0.0,
+            min(100.0, float(policy_lab.get("morning_soc_min_percent", 25))),
+        ),
+        policy_lab_morning_soc_max_percent=max(
+            0.0,
+            min(100.0, float(policy_lab.get("morning_soc_max_percent", 80))),
         ),
         sites=sites,
     )

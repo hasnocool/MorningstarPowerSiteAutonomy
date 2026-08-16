@@ -84,14 +84,32 @@ can build on the evidence-intelligence layer added in v0.6:
 - expose adaptive-world REST and local-console surfaces
 - remain strictly read-only with respect to physical hardware
 
-## Future — adaptive model depth
+## v0.8 — Adaptive Policy Lab and Decision Intelligence
 
-- weather-regime-specific weighting (marine cloud, clear sky, frontal systems)
-- rolling-origin cross-validation instead of one temporal holdout
+- immutable point-in-time policy replay over mature Shadow Autopilot plans
+- bounded global and regime-specific policy candidate generation
+- rolling-origin validation folds
+- paired bootstrap confidence for challenger promotion
+- hard no-regression gate for emergency-reserve and observed safety incidents
+- automatic shadow-policy champion restoration after restart
+- contextual energy-regime classification
+- bounded dynamic-reserve recommendations with multi-timescale reserve pressure
+- Pareto policy frontier across risk, auxiliary energy, deferral, throughput, and score
+- longer-horizon regret decomposition by weather/PV/load/battery/policy/optimizer source
+- autonomy intelligence score with explicit weakest-component attribution
+- persistent policy registry, evaluations, tournaments, frontiers, regret, and scorecards
+- promoted policies affect Shadow Autopilot proposals only; hardware remains non-executable
+
+## Future — adaptive model and policy depth
+
+- weather-regime-specific weighting using explicit meteorological features
+- dedicated rolling-origin world-model cross-validation beyond the policy replay folds
 - chemistry-specific calendar/cycle aging priors combined with observed degradation
 - stronger managed-load identity/completion attribution from dedicated metered signatures
 - multi-site transfer priors with privacy-preserving local raw telemetry
-- longer-horizon regret decomposition by weather/load/battery/policy error source
+- learned policy portfolios with independently promoted per-regime champions
+- 7-14 day external forecast ingestion for scarcity planning beyond the current 168 h horizon
+- decision-sensitive data acquisition that prioritizes errors most likely to change recommendations
 
 ## Separate future product — policy-validated executor
 

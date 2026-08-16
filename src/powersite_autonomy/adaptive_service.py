@@ -6,10 +6,35 @@ from datetime import UTC, datetime, timedelta
 from .adaptive_models import SeasonalCalibrationOverlay, UncertaintyCalibration, WeatherSkillSummary
 from .adaptive_service_base import AdaptiveWorldService as _AdaptiveWorldService
 from .models import SiteCalibration, SiteConfig
+from .policy_service import PolicyLabService
+from .policy_storage import PolicyLabStorage
+from .shadow_storage import ShadowStorage
 
 
 class AdaptiveWorldService(_AdaptiveWorldService):
-    """Adaptive service with reversible champion activation."""
+    """Adaptive service with reversible champion activation and policy learning."""
+
+    def __init__(self, settings, autonomy, storage, shadow_storage=None) -> None:
+        super().__init__(settings, autonomy, storage, shadow_storage)
+        policy_shadow_storage = shadow_storage or ShadowStorage(settings.database_path)
+        self.policy_lab = PolicyLabService(
+            settings,
+            autonomy,
+            policy_shadow_storage,
+            storage,
+            PolicyLabStorage(settings.database_path),
+        )
+
+    async def restore_runtime_profile(self, site_uid: str) -> None:
+        await super().restore_runtime_profile(site_uid)
+        if getattr(self.settings, "policy_lab_enabled", True):
+            await self.policy_lab.restore_champion(site_uid)
+
+    async def tick(self, site_uid: str):
+        snapshot = await super().tick(site_uid)
+        if getattr(self.settings, "policy_lab_enabled", True):
+            await self.policy_lab.tick(site_uid)
+        return snapshot
 
     async def _activate_runtime_model(
         self,
