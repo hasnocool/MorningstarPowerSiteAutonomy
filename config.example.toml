@@ -19,10 +19,26 @@ feedback_cooldown_hours = 12
 # Each automatic feedback step is bounded to +/-5% even if the observed bias is larger.
 feedback_max_adjustment_fraction = 0.05
 
+[adaptive_world]
+# Adaptive World Model learns from read-only telemetry and retained forecasts.
+enabled = true
+# Run the heavier self-learning pass every six hours by default.
+interval_seconds = 21600
+# Historical window for seasonal/load/battery learning.
+history_days = 120
+# Retain exact per-model weather predictions out to this horizon.
+weather_horizon_hours = 72
+# Wait until the full 72h forecast has matured before scoring it.
+weather_evaluation_delay_hours = 84
+# Champion/challenger and uncertainty gates.
+minimum_samples = 48
+minimum_samples_per_cell = 4
+promotion_margin = 0.08
+
 [weather]
 base_url = "https://api.open-meteo.com/v1/forecast"
 archive_base_url = "https://archive-api.open-meteo.com/v1/archive"
-# Optional: fetch each model concurrently and use inter-model spread as forecast uncertainty.
+# Adaptive World Model can learn site/horizon-specific weights for these models.
 # models = ["gem_seamless", "gfs_seamless", "ecmwf_ifs025"]
 models = []
 

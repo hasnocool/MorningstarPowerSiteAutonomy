@@ -11,6 +11,9 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
 
 from . import __version__
+from .adaptive_api import build_adaptive_router
+from .adaptive_service import AdaptiveWorldService
+from .adaptive_storage import AdaptiveStorage
 from .config import Settings, load_settings
 from .evidence_api import build_evidence_router
 from .evidence_service import EvidenceIntelligenceService
@@ -42,14 +45,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     service = AutonomyService(resolved, morningstar, weather, storage, sentinel)
     shadow_storage = ShadowStorage(resolved.database_path)
     shadow_service = ShadowAutopilotService(resolved, service, shadow_storage)
+    adaptive_storage = AdaptiveStorage(resolved.database_path)
+    adaptive_service = AdaptiveWorldService(
+        resolved,
+        service,
+        adaptive_storage,
+        shadow_storage,
+    )
     evidence_service = EvidenceIntelligenceService()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        await asyncio.gather(storage.initialize(), shadow_storage.initialize())
+        await asyncio.gather(
+            storage.initialize(),
+            shadow_storage.initialize(),
+            adaptive_storage.initialize(),
+        )
         app.state.service = service
         app.state.shadow_service = shadow_service
+        app.state.adaptive_service = adaptive_service
         app.state.evidence_service = evidence_service
+        if resolved.adaptive_world_enabled:
+            await asyncio.gather(
+                *(adaptive_service.restore_runtime_profile(uid) for uid in resolved.sites),
+                return_exceptions=True,
+            )
         tasks = [asyncio.create_task(_forecast_loop(service), name="autonomy-forecast-loop")]
         if resolved.auto_calibration_enabled:
             tasks.append(
@@ -60,6 +80,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 asyncio.create_task(
                     _shadow_autopilot_loop(shadow_service),
                     name="autonomy-shadow-autopilot-loop",
+                )
+            )
+        if resolved.adaptive_world_enabled:
+            tasks.append(
+                asyncio.create_task(
+                    _adaptive_world_loop(adaptive_service),
+                    name="autonomy-adaptive-world-loop",
                 )
             )
         try:
@@ -80,11 +107,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version=__version__,
         description=(
             "Read-only calibrated energy forecasting, digital-twin, scheduling, planning, "
-            "shadow-autopilot, and evidence-intelligence service."
+            "shadow-autopilot, adaptive-world, and evidence-intelligence service."
         ),
         lifespan=lifespan,
     )
     app.include_router(build_shadow_router(shadow_service))
+    app.include_router(build_adaptive_router(adaptive_service))
     app.include_router(build_evidence_router(evidence_service))
 
     @app.get("/", response_class=HTMLResponse)
@@ -106,6 +134,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "auto_calibration": resolved.auto_calibration_enabled,
             "shadow_autopilot": resolved.shadow_autopilot_enabled,
             "shadow_autopilot_executable": False,
+            "adaptive_world": resolved.adaptive_world_enabled,
+            "adaptive_world_executable": False,
             "evidence_intelligence": True,
             "evidence_intelligence_executable": False,
         }
@@ -319,6 +349,17 @@ async def _shadow_autopilot_loop(service: ShadowAutopilotService) -> None:
         await asyncio.sleep(interval)
 
 
+async def _adaptive_world_loop(service: AdaptiveWorldService) -> None:
+    interval = max(900.0, service.settings.adaptive_interval_seconds)
+    while True:
+        for site_uid in service.settings.sites:
+            try:
+                await service.tick(site_uid)
+            except (httpx.HTTPError, RuntimeError, ValueError):
+                pass
+        await asyncio.sleep(interval)
+
+
 def _dashboard_html() -> str:
     return """<!doctype html>
 <html lang="en">
@@ -343,7 +384,7 @@ input { border: 1px solid #40505d; border-radius: 6px; }
 <body>
 <main>
 <h1>Morningstar PowerSite Autonomy</h1>
-<p class="muted">Calibrated forecasting, optimization, and read-only Shadow Autopilot.</p>
+<p class="muted">Calibrated forecasting, Shadow Autopilot, and adaptive world modeling.</p>
 <div class="card">
 <label>Site UID <input id="site" value="sys_default"></label>
 <button onclick="loadPath('forecast?hours=72')">Forecast</button>
@@ -353,6 +394,9 @@ input { border: 1px solid #40505d; border-radius: 6px; }
 <button onclick="loadPath('autopilot/scorecard')">Autopilot scorecard</button>
 <button onclick="loadPath('autopilot/actions?limit=50')">Shadow ledger</button>
 <button onclick="loadPath('autopilot/epochs')">Model epochs</button>
+<button onclick="loadPath('adaptive/snapshot')">Adaptive world</button>
+<button onclick="loadPath('adaptive/weather/skill')">Weather skill</button>
+<button onclick="loadPath('adaptive/scorecard')">Adaptive scorecard</button>
 </div>
 <div class="card"><pre id="output">Select a configured site and request a view.</pre></div>
 <script>
