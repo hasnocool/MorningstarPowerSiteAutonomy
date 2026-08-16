@@ -9,6 +9,16 @@ auto_calibration_enabled = true
 calibration_interval_seconds = 21600
 calibration_history_days = 30
 
+[shadow_autopilot]
+# Shadow Autopilot only proposes, records, replays, and scores actions. It never executes them.
+enabled = true
+interval_seconds = 900
+horizon_hours = 72
+evaluation_delay_hours = 6
+feedback_cooldown_hours = 12
+# Each automatic feedback step is bounded to +/-5% even if the observed bias is larger.
+feedback_max_adjustment_fraction = 0.05
+
 [weather]
 base_url = "https://api.open-meteo.com/v1/forecast"
 archive_base_url = "https://archive-api.open-meteo.com/v1/archive"
@@ -43,6 +53,51 @@ battery_usable_capacity_percent = 90
 battery_health_percent = 100
 max_charge_power_w = 800
 max_discharge_power_w = 1000
+
+[sites.sys_default.shadow_policy]
+policy_version = "energy-policy-v1"
+minimum_reserve_percent = 25
+emergency_reserve_percent = 15
+target_morning_soc_percent = 40
+target_reserve_breach_probability = 0.05
+maximize_solar_self_consumption = true
+minimize_auxiliary_energy = true
+minimize_battery_degradation = true
+feedback_enabled = true
+# Optional advisory external-source model. Omit these to disable auxiliary-source proposals.
+# auxiliary_source_power_w = 400
+# auxiliary_max_energy_wh = 1200
+
+[sites.sys_default.shadow_policy.weights]
+reserve_risk = 100
+unserved_critical_load = 1000
+battery_degradation = 15
+curtailed_solar = 3
+auxiliary_energy = 20
+deferred_load = 5
+load_interruptions = 2
+
+# Managed loads are hypothetical scheduling contracts. No device address, relay, register,
+# protocol command, or write capability is stored here.
+[[sites.sys_default.shadow_loads]]
+load_id = "batch-work"
+name = "Deferrable batch workload"
+priority = "deferrable"
+power_w = 120
+energy_required_wh = 480
+earliest_start_hour = 1
+deadline_hour = 24
+interruptible = true
+
+[[sites.sys_default.shadow_loads]]
+load_id = "surplus-only-work"
+name = "Surplus-only workload"
+priority = "surplus_only"
+power_w = 80
+energy_required_wh = 240
+earliest_start_hour = 4
+deadline_hour = 30
+interruptible = true
 
 [[sites.sys_default.pv_arrays]]
 name = "main-array"

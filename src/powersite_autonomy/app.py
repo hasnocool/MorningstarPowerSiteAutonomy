@@ -20,6 +20,9 @@ from .models import (
 )
 from .sentinel import SentinelClient
 from .service import AutonomyService
+from .shadow_api import build_shadow_router
+from .shadow_service import ShadowAutopilotService
+from .shadow_storage import ShadowStorage
 from .storage import Storage
 from .upstream import MorningstarClient
 from .weather import WeatherClient
@@ -35,15 +38,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     sentinel = SentinelClient(resolved.sentinel_base_url) if resolved.sentinel_base_url else None
     storage = Storage(resolved.database_path)
     service = AutonomyService(resolved, morningstar, weather, storage, sentinel)
+    shadow_storage = ShadowStorage(resolved.database_path)
+    shadow_service = ShadowAutopilotService(resolved, service, shadow_storage)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        await storage.initialize()
+        await asyncio.gather(storage.initialize(), shadow_storage.initialize())
         app.state.service = service
+        app.state.shadow_service = shadow_service
         tasks = [asyncio.create_task(_forecast_loop(service), name="autonomy-forecast-loop")]
         if resolved.auto_calibration_enabled:
             tasks.append(
                 asyncio.create_task(_calibration_loop(service), name="autonomy-calibration-loop")
+            )
+        if resolved.shadow_autopilot_enabled:
+            tasks.append(
+                asyncio.create_task(
+                    _shadow_autopilot_loop(shadow_service),
+                    name="autonomy-shadow-autopilot-loop",
+                )
             )
         try:
             yield
@@ -62,11 +75,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="Morningstar PowerSite Autonomy",
         version=__version__,
         description=(
-            "Read-only calibrated energy forecasting, digital-twin, scheduling, "
-            "and planning service."
+            "Read-only calibrated energy forecasting, digital-twin, scheduling, planning, "
+            "and shadow-autopilot service."
         ),
         lifespan=lifespan,
     )
+    app.include_router(build_shadow_router(shadow_service))
 
     @app.get("/", response_class=HTMLResponse)
     async def index() -> HTMLResponse:
@@ -85,6 +99,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "morningstar_api": upstream,
             "sentinel_configured": service.sentinel is not None,
             "auto_calibration": resolved.auto_calibration_enabled,
+            "shadow_autopilot": resolved.shadow_autopilot_enabled,
+            "shadow_autopilot_executable": False,
         }
 
     @app.get("/v1/sites")
@@ -285,6 +301,17 @@ async def _calibration_loop(service: AutonomyService) -> None:
         await asyncio.sleep(interval)
 
 
+async def _shadow_autopilot_loop(service: ShadowAutopilotService) -> None:
+    interval = max(300.0, service.settings.shadow_interval_seconds)
+    while True:
+        for site_uid in service.settings.sites:
+            try:
+                await service.tick(site_uid)
+            except (httpx.HTTPError, RuntimeError, ValueError):
+                pass
+        await asyncio.sleep(interval)
+
+
 def _dashboard_html() -> str:
     return """<!doctype html>
 <html lang="en">
@@ -299,7 +326,7 @@ main { max-width: 1100px; margin: auto; }
 .card { background: #182028; border: 1px solid #2b3945; border-radius: 14px; }
 .card { padding: 1rem 1.2rem; margin: 1rem 0; }
 button { padding: .65rem 1rem; border-radius: 8px; border: 0; cursor: pointer; }
-button { margin-right: .4rem; }
+button { margin-right: .4rem; margin-bottom: .4rem; }
 pre { white-space: pre-wrap; overflow: auto; }
 .muted { color: #9eb0be; }
 input { padding: .55rem; background: #0e1419; color: #fff; }
@@ -309,13 +336,16 @@ input { border: 1px solid #40505d; border-radius: 6px; }
 <body>
 <main>
 <h1>Morningstar PowerSite Autonomy</h1>
-<p class="muted">Calibrated reserve forecasting, digital twin, optimization,
-and read-only planning.</p>
+<p class="muted">Calibrated forecasting, optimization, and read-only Shadow Autopilot.</p>
 <div class="card">
 <label>Site UID <input id="site" value="sys_default"></label>
 <button onclick="loadPath('forecast?hours=72')">Forecast</button>
 <button onclick="loadPath('digital-twin')">Digital twin</button>
 <button onclick="loadPath('action-plan?hours=72')">Action plan</button>
+<button onclick="loadPath('autopilot/plan?hours=72')">Shadow plan</button>
+<button onclick="loadPath('autopilot/scorecard')">Autopilot scorecard</button>
+<button onclick="loadPath('autopilot/actions?limit=50')">Shadow ledger</button>
+<button onclick="loadPath('autopilot/epochs')">Model epochs</button>
 </div>
 <div class="card"><pre id="output">Select a configured site and request a view.</pre></div>
 <script>
