@@ -1,26 +1,40 @@
-# Product definition
+# Product contract
 
-## Primary question
+Morningstar PowerSite Autonomy is the **predictive planning** member of the Morningstar software
+family. Its job is to turn normalized site evidence and future weather into calibrated estimates
+of reserve risk, energy surplus, safe scheduling windows, sizing alternatives, and advisory action
+plans.
 
-> Will this site have enough energy over the next hours or days, how uncertain is that answer, and what changes improve the outcome?
+## It owns
 
-Autonomy is a probabilistic planning layer above MorningstarModbusAPI. It does not duplicate Modbus discovery, device identity, register decoding, or raw history. It does not duplicate Sentinel's deterministic incident lifecycle.
+- historical site calibration and model-version history;
+- probabilistic PV/load/SOC forecasting;
+- battery digital-twin estimates derived from configured and observed evidence;
+- flexible-load scheduling and system-sizing optimization;
+- advisory external-energy requirement calculations;
+- forecast-vs-actual scoring and calibration diagnostics;
+- compact risk output for downstream incident/alert consumers.
 
-## v0.1 contract
+## It consumes rather than duplicates
 
-- forecast solar production and load on an hourly horizon;
-- simulate usable battery reserve;
-- publish P10/P50/P90 trajectories and breach probabilities;
-- retain explicit input provenance/quality;
-- compare baseline against read-only what-if scenarios;
-- persist forecasts for later calibration and backtesting;
-- remain fully useful on a local LAN without a proprietary cloud.
+MorningstarModbusAPI remains authoritative for controller identity, device/register semantics,
+telemetry, history, component graph/topology, power flow, energy ledger, and provenance.
+PowerSiteSentinel remains authoritative for deterministic health findings and incident lifecycle.
 
-## Non-goals
+## Non-goals and safety contract
 
-- Modbus writes or controller configuration;
-- automatic load shedding;
-- generator start/stop;
-- pretending probabilistic forecasts are observed facts;
-- battery state-of-health claims without sufficient evidence;
-- hiding missing instrumentation by silently inventing values.
+Autonomy does not expose Modbus writes, coil writes, equalization, reset/configuration changes,
+relay/load switching, generator start/stop, SNMP SET, or arbitrary command passthrough. Scheduling,
+optimization, auxiliary-energy results, risk feeds, and action plans are decision-support output.
+They do not execute hardware actions.
+
+## Trust model
+
+The service prefers explicit uncertainty over fake certainty:
+
+- missing measurements are not converted to zero;
+- historical learning has sample-count and fallback notes;
+- Sentinel warnings widen uncertainty instead of inventing unsupported derating values;
+- forecasts identify their model/calibration version;
+- predicted values are never presented as measurements;
+- paired Monte Carlo seeds are used for comparative planning where possible.
