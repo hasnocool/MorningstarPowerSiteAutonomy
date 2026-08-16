@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import os
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from .models import SiteConfig
+from .shadow_models import EnergyPolicy, ManagedLoad
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,6 +28,14 @@ class Settings:
     risk_feed_secret: str | None
     monte_carlo_samples: int
     sites: dict[str, SiteConfig]
+    shadow_autopilot_enabled: bool = True
+    shadow_interval_seconds: float = 900.0
+    shadow_horizon_hours: int = 72
+    shadow_evaluation_delay_hours: float = 6.0
+    shadow_feedback_cooldown_hours: float = 12.0
+    shadow_feedback_max_adjustment_fraction: float = 0.05
+    shadow_policies: dict[str, EnergyPolicy] = field(default_factory=dict)
+    shadow_loads: dict[str, list[ManagedLoad]] = field(default_factory=dict)
 
 
 def _as_bool(value: Any, default: bool) -> bool:
@@ -48,6 +57,15 @@ def _models(value: Any) -> tuple[str, ...]:
     return ()
 
 
+def _policy_for_site(site: SiteConfig, value: Any) -> EnergyPolicy:
+    raw = dict(value) if isinstance(value, dict) else {}
+    raw.setdefault("minimum_reserve_percent", site.reserve_percent)
+    default_emergency = max(0.0, min(15.0, site.reserve_percent - 5.0))
+    raw.setdefault("emergency_reserve_percent", default_emergency)
+    raw.setdefault("target_morning_soc_percent", max(40.0, site.reserve_percent))
+    return EnergyPolicy.model_validate(raw)
+
+
 def load_settings(path: str | Path = "config.toml") -> Settings:
     config_path = Path(path)
     raw: dict = {}
@@ -60,9 +78,18 @@ def load_settings(path: str | Path = "config.toml") -> Settings:
     autonomy = raw.get("autonomy", {})
     weather = raw.get("weather", {})
     sentinel = raw.get("sentinel", {})
+    shadow = raw.get("shadow_autopilot", {})
     raw_sites = raw.get("sites", {})
 
     sites = {uid: SiteConfig.model_validate(value) for uid, value in raw_sites.items()}
+    shadow_policies = {
+        uid: _policy_for_site(sites[uid], value.get("shadow_policy", {}))
+        for uid, value in raw_sites.items()
+    }
+    shadow_loads = {
+        uid: [ManagedLoad.model_validate(item) for item in value.get("shadow_loads", [])]
+        for uid, value in raw_sites.items()
+    }
     sentinel_url = os.getenv("AUTONOMY_SENTINEL_URL", sentinel.get("base_url", "")).strip()
     return Settings(
         morningstar_base_url=os.getenv(
@@ -109,5 +136,51 @@ def load_settings(path: str | Path = "config.toml") -> Settings:
         sentinel_base_url=sentinel_url or None,
         risk_feed_secret=os.getenv("AUTONOMY_RISK_FEED_SECRET") or None,
         monte_carlo_samples=int(autonomy.get("monte_carlo_samples", 300)),
+        shadow_autopilot_enabled=_as_bool(
+            os.getenv("AUTONOMY_SHADOW_ENABLED", shadow.get("enabled", True)),
+            True,
+        ),
+        shadow_interval_seconds=float(
+            os.getenv("AUTONOMY_SHADOW_INTERVAL", shadow.get("interval_seconds", 900))
+        ),
+        shadow_horizon_hours=max(
+            1,
+            min(
+                168,
+                int(os.getenv("AUTONOMY_SHADOW_HORIZON", shadow.get("horizon_hours", 72))),
+            ),
+        ),
+        shadow_evaluation_delay_hours=max(
+            1.0,
+            float(
+                os.getenv(
+                    "AUTONOMY_SHADOW_EVALUATION_DELAY",
+                    shadow.get("evaluation_delay_hours", 6),
+                )
+            ),
+        ),
+        shadow_feedback_cooldown_hours=max(
+            1.0,
+            float(
+                os.getenv(
+                    "AUTONOMY_SHADOW_FEEDBACK_COOLDOWN",
+                    shadow.get("feedback_cooldown_hours", 12),
+                )
+            ),
+        ),
+        shadow_feedback_max_adjustment_fraction=max(
+            0.001,
+            min(
+                0.10,
+                float(
+                    os.getenv(
+                        "AUTONOMY_SHADOW_FEEDBACK_MAX_ADJUSTMENT",
+                        shadow.get("feedback_max_adjustment_fraction", 0.05),
+                    )
+                ),
+            ),
+        ),
+        shadow_policies=shadow_policies,
+        shadow_loads=shadow_loads,
         sites=sites,
     )

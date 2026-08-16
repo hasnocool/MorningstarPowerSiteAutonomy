@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "morningstar-powersite-autonomy"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local-first predictive energy, battery-autonomy, and decision-support engine for Morningstar power sites"
 readme = "README.md"
 requires-python = ">=3.12"

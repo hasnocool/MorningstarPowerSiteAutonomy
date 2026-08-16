@@ -12,8 +12,6 @@
 
 ## v0.2 — site intelligence foundation
 
-Implemented in the current branch:
-
 - historical Morningstar system-history ingestion
 - historical weather alignment and automatic calibration
 - hourly/weekday load baselines and recurring demand signatures
@@ -29,21 +27,42 @@ Implemented in the current branch:
 - bounded PV/battery sizing optimization
 - read-only auxiliary-energy planner
 - topology/ledger-backed digital-twin output
-- Sentinel health-feedback adapter
-- optional HMAC-signed reserve-risk feed for Sentinel
+- Sentinel health-feedback adapter and optional signed reserve-risk feed
 - machine-readable non-executable action plans
 
-## v0.3 — deeper self-learning
+## v0.3 — Shadow Autopilot
+
+Implemented in this stacked branch:
+
+- receding-horizon planning on a configurable cadence/horizon
+- explicit per-site energy policy and weighted multi-objective score
+- conservative, balanced, and maximum-utilization plan alternatives
+- emergency-reserve hard objective constraint
+- logical managed-load contracts without hardware addresses/write targets
+- cumulative flexible-load scheduling across multiple managed loads
+- optional advisory auxiliary-energy proposals
+- immutable non-executable shadow action contract with policy/model provenance
+- SQLite/WAL plan and action ledger with action lifecycle state
+- actual-vs-shadow-vs-hindsight counterfactual replay
+- decision-regret and shadow-improvement scoring
+- PV/load/SOC error attribution from measured outcomes
+- bounded and cooldown-limited automatic calibration feedback
+- explicit model epochs and change-point detection
+- 30-day-style aggregate Autopilot scorecard primitives
+- periodic background shadow planning/evaluation loop
+- API and local-console surfaces for plans, actions, evaluations, feedback, epochs, and scorecards
+
+## v0.4 — deeper self-learning
 
 - seasonal/monthly PV calibration layers with minimum-data gates
-- explicit change-point detection when hardware/configuration changes
 - richer recurring-load event clustering beyond hour-of-day signatures
-- battery capacity/impedance trend analysis across calibration history
 - chemistry-specific degradation and cycle-throughput models
-- historical forecast-run ingestion for exact lead-time weather-model backtesting
-- automatic weather-model weighting by local measured forecast skill
+- exact weather-model forecast-run retention and local-skill weighting
+- explicit managed-load completion evidence from read-only meters/telemetry
+- probabilistic change-point detection instead of fixed relative thresholds
+- longer-horizon regret decomposition by weather/load/battery/policy error source
 
-## v0.4 — vendor-neutral site intelligence
+## v0.5 — vendor-neutral site intelligence
 
 - BMS, inverter, AC meter, generator-telemetry, and environmental read-only adapters
 - normalized storage/source/load/converter/meter/environment roles
@@ -55,6 +74,6 @@ Implemented in the current branch:
 
 Hardware control remains intentionally outside PowerSiteAutonomy. If closed-loop control is ever
 introduced, use a separate executor with explicit operator opt-in, allowlisted actions, hard
-voltage/current/temperature limits, replayable audit logs, fail-safe defaults, and independent
-policy validation. Autonomy should continue producing proposed actions rather than acquiring
-arbitrary write capability.
+safety limits, replayable audit logs, fail-safe defaults, and independent policy validation.
+Autonomy should continue producing proposed actions rather than acquiring arbitrary write
+capability.
