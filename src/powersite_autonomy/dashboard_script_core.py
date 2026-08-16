@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 DASHBOARD_SCRIPT_CORE = r"""const state = {
   site: null,
   sites: [],
@@ -79,6 +78,7 @@ function timeAgo(value) {
   if (seconds < 86400) return `${Math.round(seconds / 3600)} h ago`;
   return `${Math.round(seconds / 86400)} d ago`;
 }
+
 
 function timeUntil(value) {
   if (!value) return "unknown";
