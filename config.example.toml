@@ -5,15 +5,28 @@ base_url = "http://127.0.0.1:8080"
 database_path = "./data/autonomy.db"
 forecast_interval_seconds = 900
 monte_carlo_samples = 300
+auto_calibration_enabled = true
+calibration_interval_seconds = 21600
+calibration_history_days = 30
 
 [weather]
 base_url = "https://api.open-meteo.com/v1/forecast"
+archive_base_url = "https://archive-api.open-meteo.com/v1/archive"
+# Optional: fetch each model concurrently and use inter-model spread as forecast uncertainty.
+# models = ["gem_seamless", "gfs_seamless", "ecmwf_ifs025"]
+models = []
+
+# Optional read-only feedback from MorningstarPowerSiteSentinel.
+[sentinel]
+base_url = "http://127.0.0.1:8090"
 
 [server]
 host = "127.0.0.1"
 port = 8091
 
 [sites.sys_default]
+# Legacy single-array values remain supported. If pv_arrays are configured below,
+# their rated_watts become authoritative for the PV model.
 array_watts = 910
 battery_capacity_wh = 4000
 reserve_percent = 25
@@ -22,6 +35,31 @@ load_watts_fallback = 100
 performance_ratio = 0.78
 charge_efficiency = 0.95
 discharge_efficiency = 0.95
-# Example site: Sooke, BC (Vancouver Island)
 latitude = 48.3764
 longitude = -123.7277
+utc_offset_hours = -7
+battery_chemistry = "lead_acid"
+battery_usable_capacity_percent = 90
+battery_health_percent = 100
+max_charge_power_w = 800
+max_discharge_power_w = 1000
+
+[[sites.sys_default.pv_arrays]]
+name = "main-array"
+rated_watts = 910
+tilt_deg = 0
+# Open-Meteo convention used by the model: 0=south, -90=east, +90=west.
+azimuth_deg = 0
+performance_ratio = 0.90
+wiring_loss_fraction = 0.02
+controller_efficiency = 0.97
+controller_max_power_w = 800
+temperature_coefficient_per_c = -0.004
+noct_c = 45
+ground_albedo = 0.20
+shading_by_hour = [
+  1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1,
+]

@@ -1,3 +1,4 @@
+# src/powersite_autonomy/storage.py
 from __future__ import annotations
 
 import asyncio
@@ -5,7 +6,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from .models import ForecastSummary, ScenarioResult
+from .models import ForecastScoreSummary, ForecastSummary, ScenarioResult, SiteCalibration
 
 _SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -24,6 +25,23 @@ CREATE TABLE IF NOT EXISTS scenarios (
     generated_at TEXT NOT NULL,
     payload_json TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS calibrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_uid TEXT NOT NULL,
+    generated_at TEXT NOT NULL,
+    calibration_version TEXT NOT NULL,
+    payload_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_calibrations_site_time
+    ON calibrations(site_uid, generated_at DESC);
+CREATE TABLE IF NOT EXISTS forecast_scores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_uid TEXT NOT NULL,
+    generated_at TEXT NOT NULL,
+    payload_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_forecast_scores_site_time
+    ON forecast_scores(site_uid, generated_at DESC);
 """
 
 
@@ -71,14 +89,87 @@ class Storage:
                 (result.site_uid, result.generated_at.isoformat(), payload),
             )
 
-    async def recent_forecasts(self, site_uid: str, limit: int = 20) -> list[dict]:
-        rows = await asyncio.to_thread(self._recent_forecasts_sync, site_uid, limit)
-        return [json.loads(row[0]) for row in rows]
+    async def save_calibration(self, calibration: SiteCalibration) -> None:
+        payload = calibration.model_dump_json()
+        async with self._write_lock:
+            await asyncio.to_thread(self._save_calibration_sync, calibration, payload)
 
-    def _recent_forecasts_sync(self, site_uid: str, limit: int) -> list[tuple[str]]:
+    def _save_calibration_sync(self, calibration: SiteCalibration, payload: str) -> None:
         with sqlite3.connect(self._path) as connection:
-            return connection.execute(
-                "SELECT payload_json FROM forecasts WHERE site_uid = ? "
+            connection.execute(
+                "INSERT INTO calibrations(site_uid, generated_at, calibration_version, "
+                "payload_json) "
+                "VALUES (?, ?, ?, ?)",
+                (
+                    calibration.site_uid,
+                    calibration.generated_at.isoformat(),
+                    calibration.calibration_version,
+                    payload,
+                ),
+            )
+
+    async def latest_calibration(self, site_uid: str) -> SiteCalibration | None:
+        row = await asyncio.to_thread(self._latest_payload_sync, "calibrations", site_uid)
+        return SiteCalibration.model_validate_json(row) if row is not None else None
+
+    async def recent_calibrations(self, site_uid: str, limit: int = 20) -> list[dict]:
+        rows = await asyncio.to_thread(
+            self._recent_payloads_sync,
+            "calibrations",
+            site_uid,
+            limit,
+        )
+        return [json.loads(row) for row in rows]
+
+    async def save_forecast_score(self, score: ForecastScoreSummary) -> None:
+        payload = score.model_dump_json()
+        async with self._write_lock:
+            await asyncio.to_thread(self._save_score_sync, score, payload)
+
+    def _save_score_sync(self, score: ForecastScoreSummary, payload: str) -> None:
+        with sqlite3.connect(self._path) as connection:
+            connection.execute(
+                "INSERT INTO forecast_scores(site_uid, generated_at, payload_json) "
+                "VALUES (?, ?, ?)",
+                (score.site_uid, score.generated_at.isoformat(), payload),
+            )
+
+    async def recent_forecasts(self, site_uid: str, limit: int = 20) -> list[dict]:
+        rows = await asyncio.to_thread(
+            self._recent_payloads_sync,
+            "forecasts",
+            site_uid,
+            limit,
+        )
+        return [json.loads(row) for row in rows]
+
+    async def recent_forecast_models(
+        self,
+        site_uid: str,
+        limit: int = 20,
+    ) -> list[ForecastSummary]:
+        payloads = await self.recent_forecasts(site_uid, limit)
+        return [ForecastSummary.model_validate(payload) for payload in payloads]
+
+    def _latest_payload_sync(self, table: str, site_uid: str) -> str | None:
+        if table not in {"calibrations", "forecasts", "forecast_scores"}:
+            raise ValueError("unsupported table")
+        with sqlite3.connect(self._path) as connection:
+            row = connection.execute(
+                f"SELECT payload_json FROM {table} WHERE site_uid = ? "
+                "ORDER BY generated_at DESC LIMIT 1",
+                (site_uid,),
+            ).fetchone()
+        return row[0] if row else None
+
+    def _recent_payloads_sync(self, table: str, site_uid: str, limit: int) -> list[str]:
+        if table not in {"calibrations", "forecasts", "forecast_scores"}:
+            raise ValueError("unsupported table")
+        bounded = max(1, min(limit, 200))
+        with sqlite3.connect(self._path) as connection:
+            rows = connection.execute(
+                f"SELECT payload_json FROM {table} WHERE site_uid = ? "
                 "ORDER BY generated_at DESC LIMIT ?",
-                (site_uid, max(1, min(limit, 200))),
+                (site_uid, bounded),
             ).fetchall()
+        return [row[0] for row in rows]

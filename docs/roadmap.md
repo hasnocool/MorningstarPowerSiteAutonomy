@@ -10,30 +10,51 @@
 - what-if scenarios
 - local persistence and web/API surfaces
 
-## v0.2 — historical calibration
+## v0.2 — site intelligence foundation
 
-- train hourly/day-of-week load baselines from Morningstar system history
-- compare prior forecasts with actual energy and SOC
-- MAE/bias/coverage calibration metrics
-- learn per-site PV performance ratio by season and time of day
-- retain forecast-model version with every run
+Implemented in the current branch:
 
-## v0.3 — planning optimizer
+- historical Morningstar system-history ingestion
+- historical weather alignment and automatic calibration
+- hourly/weekday load baselines and recurring demand signatures
+- multi-array PV geometry/temperature/shading/controller model
+- learned PV correction factors
+- optional multi-model weather ensembles and spread propagation
+- battery digital twin with capacity/temperature/power-limit modeling
+- learned usable-capacity and resistance estimates when evidence supports them
+- conservative surplus/discretionary-energy forecasts
+- unmet-load probability
+- forecast-vs-actual MAE/bias/P10-P90 scoring by lead time
+- flexible and interruptible load scheduling
+- bounded PV/battery sizing optimization
+- read-only auxiliary-energy planner
+- topology/ledger-backed digital-twin output
+- Sentinel health-feedback adapter
+- optional HMAC-signed reserve-risk feed for Sentinel
+- machine-readable non-executable action plans
 
-- calculate maximum discretionary energy by time window
-- find minimum additional PV or battery capacity needed for a target reserve probability
-- replay historical weather/energy windows for sizing decisions
-- rank candidate load schedules by reserve risk
+## v0.3 — deeper self-learning
 
-## v0.4 — Sentinel integration
+- seasonal/monthly PV calibration layers with minimum-data gates
+- explicit change-point detection when hardware/configuration changes
+- richer recurring-load event clustering beyond hour-of-day signatures
+- battery capacity/impedance trend analysis across calibration history
+- chemistry-specific degradation and cycle-throughput models
+- historical forecast-run ingestion for exact lead-time weather-model backtesting
+- automatic weather-model weighting by local measured forecast skill
 
-- signed/read-only reserve-risk feed for MorningstarPowerSiteSentinel
-- predicted reserve-breach incidents with confidence thresholds
-- forecast-vs-actual diagnostic events
+## v0.4 — vendor-neutral site intelligence
 
-## Future
+- BMS, inverter, AC meter, generator-telemetry, and environmental read-only adapters
+- normalized storage/source/load/converter/meter/environment roles
+- multiple battery-bank and bus-segment simulation
+- topology-aware branch constraints and conversion losses
+- fleet-level compact model/health summaries while keeping raw high-frequency data local
 
-- vendor-neutral site adapters
-- ensemble weather providers
-- battery chemistry/degradation models
-- optional operator-approved control recommendations, while keeping automated control out of the forecasting service
+## Separate future product — policy-validated executor
+
+Hardware control remains intentionally outside PowerSiteAutonomy. If closed-loop control is ever
+introduced, use a separate executor with explicit operator opt-in, allowlisted actions, hard
+voltage/current/temperature limits, replayable audit logs, fail-safe defaults, and independent
+policy validation. Autonomy should continue producing proposed actions rather than acquiring
+arbitrary write capability.
