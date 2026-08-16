@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 DASHBOARD_SCRIPT_RUNTIME = r"""function renderLearning() {
   renderWorldModel();
   renderWeatherSkill();
