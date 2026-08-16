@@ -129,4 +129,96 @@ def build_adaptive_router(service: AdaptiveWorldService) -> APIRouter:
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    @router.post("/policy-lab/tick")
+    async def policy_tick(site_uid: str):
+        try:
+            return await service.policy_lab.tick(site_uid)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.get("/policy-lab/snapshot")
+    async def policy_snapshot(site_uid: str):
+        try:
+            return await service.policy_lab.snapshot(site_uid)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.get("/policy-lab/champion")
+    async def policy_champion(site_uid: str):
+        try:
+            return await service.policy_lab.champion(site_uid)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.get("/policy-lab/candidates")
+    async def policy_candidates(
+        site_uid: str,
+        limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    ):
+        service.autonomy.site_config(site_uid)
+        return await service.policy_lab.storage.recent_candidates(site_uid, limit)
+
+    @router.get("/policy-lab/evaluations")
+    async def policy_evaluations(
+        site_uid: str,
+        limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    ):
+        service.autonomy.site_config(site_uid)
+        return await service.policy_lab.storage.recent_evaluations(site_uid, limit)
+
+    @router.get("/policy-lab/tournaments")
+    async def policy_tournaments(
+        site_uid: str,
+        limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    ):
+        service.autonomy.site_config(site_uid)
+        return await service.policy_lab.storage.recent_tournaments(site_uid, limit)
+
+    @router.get("/policy-lab/frontier")
+    async def policy_frontier(site_uid: str):
+        try:
+            return await service.policy_lab.frontier(site_uid)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.get("/policy-lab/regret")
+    async def policy_regret(site_uid: str):
+        service.autonomy.site_config(site_uid)
+        value = await service.policy_lab.storage.latest_regret(site_uid)
+        if value is not None:
+            return value
+        return (await service.policy_lab.tick(site_uid)).regret
+
+    @router.get("/policy-lab/decision-sensitivity")
+    async def decision_sensitivity(site_uid: str):
+        try:
+            return (await service.policy_lab.snapshot(site_uid)).decision_sensitivity
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.get("/policy-lab/dynamic-reserve")
+    async def dynamic_reserve(site_uid: str):
+        try:
+            return await service.policy_lab.dynamic_reserve(site_uid)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.get("/policy-lab/scorecard")
+    async def policy_scorecard(site_uid: str):
+        try:
+            return await service.policy_lab.scorecard(site_uid)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.get("/policy-lab/intelligence")
+    async def policy_intelligence(site_uid: str):
+        try:
+            return await service.policy_lab.intelligence(site_uid)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
     return router
