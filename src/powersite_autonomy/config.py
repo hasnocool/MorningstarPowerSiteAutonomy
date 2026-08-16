@@ -36,6 +36,14 @@ class Settings:
     shadow_feedback_max_adjustment_fraction: float = 0.05
     shadow_policies: dict[str, EnergyPolicy] = field(default_factory=dict)
     shadow_loads: dict[str, list[ManagedLoad]] = field(default_factory=dict)
+    adaptive_world_enabled: bool = True
+    adaptive_interval_seconds: float = 21600.0
+    adaptive_history_days: int = 120
+    adaptive_weather_horizon_hours: int = 72
+    adaptive_weather_evaluation_delay_hours: float = 84.0
+    adaptive_minimum_samples: int = 48
+    adaptive_minimum_samples_per_cell: int = 4
+    adaptive_promotion_margin: float = 0.08
 
 
 def _as_bool(value: Any, default: bool) -> bool:
@@ -79,6 +87,7 @@ def load_settings(path: str | Path = "config.toml") -> Settings:
     weather = raw.get("weather", {})
     sentinel = raw.get("sentinel", {})
     shadow = raw.get("shadow_autopilot", {})
+    adaptive = raw.get("adaptive_world", {})
     raw_sites = raw.get("sites", {})
 
     sites = {uid: SiteConfig.model_validate(value) for uid, value in raw_sites.items()}
@@ -182,5 +191,81 @@ def load_settings(path: str | Path = "config.toml") -> Settings:
         ),
         shadow_policies=shadow_policies,
         shadow_loads=shadow_loads,
+        adaptive_world_enabled=_as_bool(
+            os.getenv("AUTONOMY_ADAPTIVE_ENABLED", adaptive.get("enabled", True)),
+            True,
+        ),
+        adaptive_interval_seconds=max(
+            900.0,
+            float(
+                os.getenv(
+                    "AUTONOMY_ADAPTIVE_INTERVAL",
+                    adaptive.get("interval_seconds", 21600),
+                )
+            ),
+        ),
+        adaptive_history_days=max(
+            14,
+            min(
+                365,
+                int(
+                    os.getenv(
+                        "AUTONOMY_ADAPTIVE_HISTORY_DAYS",
+                        adaptive.get("history_days", 120),
+                    )
+                ),
+            ),
+        ),
+        adaptive_weather_horizon_hours=max(
+            1,
+            min(
+                168,
+                int(
+                    os.getenv(
+                        "AUTONOMY_ADAPTIVE_WEATHER_HORIZON",
+                        adaptive.get("weather_horizon_hours", 72),
+                    )
+                ),
+            ),
+        ),
+        adaptive_weather_evaluation_delay_hours=max(
+            24.0,
+            float(
+                os.getenv(
+                    "AUTONOMY_ADAPTIVE_WEATHER_EVALUATION_DELAY",
+                    adaptive.get("weather_evaluation_delay_hours", 84),
+                )
+            ),
+        ),
+        adaptive_minimum_samples=max(
+            6,
+            int(
+                os.getenv(
+                    "AUTONOMY_ADAPTIVE_MINIMUM_SAMPLES",
+                    adaptive.get("minimum_samples", 48),
+                )
+            ),
+        ),
+        adaptive_minimum_samples_per_cell=max(
+            2,
+            int(
+                os.getenv(
+                    "AUTONOMY_ADAPTIVE_MINIMUM_CELL_SAMPLES",
+                    adaptive.get("minimum_samples_per_cell", 4),
+                )
+            ),
+        ),
+        adaptive_promotion_margin=max(
+            0.01,
+            min(
+                0.50,
+                float(
+                    os.getenv(
+                        "AUTONOMY_ADAPTIVE_PROMOTION_MARGIN",
+                        adaptive.get("promotion_margin", 0.08),
+                    )
+                ),
+            ),
+        ),
         sites=sites,
     )
