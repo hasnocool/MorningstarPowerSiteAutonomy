@@ -182,6 +182,18 @@ def _weighted_stddev(values: list[float], weights: list[float], mean: float) -> 
     return math.sqrt(max(0.0, variance))
 
 
+def _weighted_optional_mean(values: list[float | None], weights: list[float]) -> float | None:
+    present = [
+        (value, weight)
+        for value, weight in zip(values, weights, strict=True)
+        if value is not None
+    ]
+    if not present:
+        return None
+    total = sum(weight for _, weight in present) or 1.0
+    return sum(float(value) * weight for value, weight in present) / total
+
+
 def _combine_ensemble(
     series: dict[str, list[WeatherHour]],
     hours: int,
@@ -204,18 +216,6 @@ def _combine_ensemble(
         radiation_mean = _weighted_mean(radiation, weights)
         clouds = [members[name].cloud_cover_percent for name in names]
         temperatures = [members[name].temperature_c for name in names]
-
-        def optional_weighted(values: list[float | None]) -> float | None:
-            present = [
-                (value, weight)
-                for value, weight in zip(values, weights, strict=True)
-                if value is not None
-            ]
-            if not present:
-                return None
-            total = sum(weight for _, weight in present) or 1.0
-            return sum(float(value) * weight for value, weight in present) / total
-
         combined.append(
             WeatherHour(
                 timestamp=timestamp,
@@ -224,8 +224,8 @@ def _combine_ensemble(
                     _weighted_stddev(radiation, weights, radiation_mean)
                     * max(0.5, min(3.0, spread_scale))
                 ),
-                cloud_cover_percent=optional_weighted(clouds),
-                temperature_c=optional_weighted(temperatures),
+                cloud_cover_percent=_weighted_optional_mean(clouds, weights),
+                temperature_c=_weighted_optional_mean(temperatures, weights),
             )
         )
     return combined

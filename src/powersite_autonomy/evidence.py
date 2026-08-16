@@ -292,7 +292,11 @@ def recommendation_stability(
     winner = ranked[0]
     runner_up = ranked[1] if len(ranked) > 1 else None
     margin = winner.expected_value - (runner_up.expected_value if runner_up else 0.0)
-    value_scale = max(abs(winner.expected_value), abs(runner_up.expected_value) if runner_up else 0.0, 1.0)
+    value_scale = max(
+        abs(winner.expected_value),
+        abs(runner_up.expected_value) if runner_up else 0.0,
+        1.0,
+    )
     margin_confidence = max(0.0, min(1.0, 0.5 + 0.5 * margin / value_scale))
     model_confidence = (
         sum(belief.confidence for belief in beliefs) / len(beliefs) if beliefs else 0.5
