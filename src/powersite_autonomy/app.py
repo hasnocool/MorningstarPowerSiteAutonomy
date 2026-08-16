@@ -12,6 +12,8 @@ from fastapi.responses import HTMLResponse
 
 from . import __version__
 from .config import Settings, load_settings
+from .evidence_api import build_evidence_router
+from .evidence_service import EvidenceIntelligenceService
 from .models import (
     AuxiliaryPlanRequest,
     FlexibleLoadRequest,
@@ -40,12 +42,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     service = AutonomyService(resolved, morningstar, weather, storage, sentinel)
     shadow_storage = ShadowStorage(resolved.database_path)
     shadow_service = ShadowAutopilotService(resolved, service, shadow_storage)
+    evidence_service = EvidenceIntelligenceService()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         await asyncio.gather(storage.initialize(), shadow_storage.initialize())
         app.state.service = service
         app.state.shadow_service = shadow_service
+        app.state.evidence_service = evidence_service
         tasks = [asyncio.create_task(_forecast_loop(service), name="autonomy-forecast-loop")]
         if resolved.auto_calibration_enabled:
             tasks.append(
@@ -76,11 +80,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version=__version__,
         description=(
             "Read-only calibrated energy forecasting, digital-twin, scheduling, planning, "
-            "and shadow-autopilot service."
+            "shadow-autopilot, and evidence-intelligence service."
         ),
         lifespan=lifespan,
     )
     app.include_router(build_shadow_router(shadow_service))
+    app.include_router(build_evidence_router(evidence_service))
 
     @app.get("/", response_class=HTMLResponse)
     async def index() -> HTMLResponse:
@@ -101,6 +106,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "auto_calibration": resolved.auto_calibration_enabled,
             "shadow_autopilot": resolved.shadow_autopilot_enabled,
             "shadow_autopilot_executable": False,
+            "evidence_intelligence": True,
+            "evidence_intelligence_executable": False,
         }
 
     @app.get("/v1/sites")

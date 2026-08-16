@@ -70,6 +70,21 @@ Implemented in this stacked branch:
 - topology-aware branch constraints and conversion losses
 - fleet-level compact model/health summaries while keeping raw high-frequency data local
 
+## v0.6 — evidence intelligence and self-validating digital twin
+
+- probabilistic parameter beliefs with explicit uncertainty, confidence, and provenance
+- precision-weighted evidence updates with physical parameter bounds
+- explicit competing hypothesis registry
+- digital-twin ensembles with posterior weighting from measured prediction error
+- champion/challenger twin promotion with minimum-history and margin gates
+- passive observation opportunities ranked by expected information gain
+- economic-impact weighting for evidence priorities
+- decision-sensitivity tracking for assumptions that can change recommendations
+- low/medium/high recommendation-stability classification
+- value-of-information economics for deciding when more evidence is worth waiting for
+- non-blocking async evidence-analysis service and REST API
+- strict read-only boundary: evidence collection never becomes a hardware experiment executor
+
 ## Separate future product — policy-validated executor
 
 Hardware control remains intentionally outside PowerSiteAutonomy. If closed-loop control is ever
