@@ -22,5 +22,6 @@ load_watts_fallback = 100
 performance_ratio = 0.78
 charge_efficiency = 0.95
 discharge_efficiency = 0.95
-latitude = 48.4284
-longitude = -123.3656
+# Example site: Sooke, BC (Vancouver Island)
+latitude = 48.3764
+longitude = -123.7277
