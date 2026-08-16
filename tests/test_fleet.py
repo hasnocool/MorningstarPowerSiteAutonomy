@@ -1,6 +1,8 @@
 # tests/test_fleet.py
 from __future__ import annotations
 
+import pytest
+
 from powersite_autonomy.fleet import (
     FleetObservation,
     SiteFingerprint,
@@ -109,9 +111,9 @@ def test_hardware_and_policy_aggregation() -> None:
     ]
     hardware = summarize_hardware(observations)
     policies = benchmark_policies(observations)
-    assert hardware[0].p50 == 0.96
-    assert policies[0].mean_utility == 0.85
-    assert policies[0].mean_regret == 0.05
+    assert hardware[0].p50 == pytest.approx(0.96)
+    assert policies[0].mean_utility == pytest.approx(0.85)
+    assert policies[0].mean_regret == pytest.approx(0.05)
 
 
 def test_federated_exchange_is_compact_and_signable() -> None:
