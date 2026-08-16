@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 
@@ -39,7 +39,7 @@ class WeatherClient:
         for index, raw_time in enumerate(times[:hours]):
             result.append(
                 WeatherHour(
-                    timestamp=datetime.fromisoformat(raw_time),
+                    timestamp=_utc_datetime(raw_time),
                     shortwave_radiation_w_m2=max(0.0, float(radiation[index] or 0.0)),
                     cloud_cover_percent=_optional_float(clouds, index),
                     temperature_c=_optional_float(temperatures, index),
@@ -52,3 +52,8 @@ def _optional_float(values: list, index: int) -> float | None:
     if index >= len(values) or values[index] is None:
         return None
     return float(values[index])
+
+
+def _utc_datetime(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value)
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)

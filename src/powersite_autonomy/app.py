@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from contextlib import asynccontextmanager
+from typing import Annotated
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
@@ -73,7 +74,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ]
 
     @app.get("/v1/sites/{site_uid}/forecast")
-    async def forecast(site_uid: str, hours: int = Query(72, ge=1, le=168)):
+    async def forecast(
+        site_uid: str,
+        hours: Annotated[int, Query(ge=1, le=168)] = 72,
+    ):
         try:
             return await service.forecast(site_uid, hours)
         except KeyError as exc:
@@ -84,7 +88,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ) from exc
 
     @app.get("/v1/sites/{site_uid}/forecasts")
-    async def forecast_history(site_uid: str, limit: int = Query(20, ge=1, le=200)):
+    async def forecast_history(
+        site_uid: str,
+        limit: Annotated[int, Query(ge=1, le=200)] = 20,
+    ):
         return await storage.recent_forecasts(site_uid, limit)
 
     @app.post("/v1/sites/{site_uid}/scenarios")
