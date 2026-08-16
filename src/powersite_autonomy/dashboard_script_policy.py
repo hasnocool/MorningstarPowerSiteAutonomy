@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 DASHBOARD_SCRIPT_POLICY = r"""function renderDecisions() {
   renderAlternatives();
   renderPolicy();
