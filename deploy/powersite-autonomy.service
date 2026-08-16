@@ -1,0 +1,16 @@
+[Unit]
+Description=Morningstar PowerSite Autonomy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/MorningstarPowerSiteAutonomy
+ExecStart=/opt/MorningstarPowerSiteAutonomy/.venv/bin/powersite-autonomy --config /etc/powersite-autonomy/config.toml serve
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

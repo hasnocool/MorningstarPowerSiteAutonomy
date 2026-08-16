@@ -1,0 +1,26 @@
+[morningstar]
+base_url = "http://127.0.0.1:8080"
+
+[autonomy]
+database_path = "./data/autonomy.db"
+forecast_interval_seconds = 900
+monte_carlo_samples = 300
+
+[weather]
+base_url = "https://api.open-meteo.com/v1/forecast"
+
+[server]
+host = "127.0.0.1"
+port = 8091
+
+[sites.sys_default]
+array_watts = 910
+battery_capacity_wh = 4000
+reserve_percent = 25
+initial_soc_fallback_percent = 50
+load_watts_fallback = 100
+performance_ratio = 0.78
+charge_efficiency = 0.95
+discharge_efficiency = 0.95
+latitude = 48.4284
+longitude = -123.3656
