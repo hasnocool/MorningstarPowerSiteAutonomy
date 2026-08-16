@@ -145,7 +145,11 @@ def evaluate_upgrade(
 
     horizon = min(site.analysis_years, max(1, math.ceil(expected_lifetime)))
     present_value = net_annual_value * _discount_factor(site.discount_rate, horizon)
-    replacement_cost = upgrade.replacement_cost if upgrade.replacement_cost is not None else upgrade.capex
+    replacement_cost = (
+        upgrade.replacement_cost
+        if upgrade.replacement_cost is not None
+        else upgrade.capex
+    )
     if expected_lifetime < site.analysis_years:
         replacement_year = max(1, math.ceil(expected_lifetime))
         present_value -= replacement_cost / ((1 + site.discount_rate) ** replacement_year)
