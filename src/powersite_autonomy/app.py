@@ -1,4 +1,3 @@
-# src/powersite_autonomy/app.py
 from __future__ import annotations
 
 import asyncio
@@ -15,6 +14,7 @@ from .adaptive_api import build_adaptive_router
 from .adaptive_service import AdaptiveWorldService
 from .adaptive_storage import AdaptiveStorage
 from .config import Settings, load_settings
+from .dashboard import dashboard_html
 from .evidence_api import build_evidence_router
 from .evidence_service import EvidenceIntelligenceService
 from .models import (
@@ -117,7 +117,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     async def index() -> HTMLResponse:
-        return HTMLResponse(_dashboard_html())
+        return HTMLResponse(dashboard_html())
 
     @app.get("/health")
     async def health() -> dict:
@@ -358,61 +358,3 @@ async def _adaptive_world_loop(service: AdaptiveWorldService) -> None:
             except (httpx.HTTPError, RuntimeError, ValueError):
                 pass
         await asyncio.sleep(interval)
-
-
-def _dashboard_html() -> str:
-    return """<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PowerSite Autonomy</title>
-<style>
-body { font-family: system-ui, sans-serif; background: #101418; color: #e8eef3; }
-body { margin: 0; padding: 2rem; }
-main { max-width: 1100px; margin: auto; }
-.card { background: #182028; border: 1px solid #2b3945; border-radius: 14px; }
-.card { padding: 1rem 1.2rem; margin: 1rem 0; }
-button { padding: .65rem 1rem; border-radius: 8px; border: 0; cursor: pointer; }
-button { margin-right: .4rem; margin-bottom: .4rem; }
-pre { white-space: pre-wrap; overflow: auto; }
-.muted { color: #9eb0be; }
-input { padding: .55rem; background: #0e1419; color: #fff; }
-input { border: 1px solid #40505d; border-radius: 6px; }
-</style>
-</head>
-<body>
-<main>
-<h1>Morningstar PowerSite Autonomy</h1>
-<p class="muted">Calibrated forecasting, Shadow Autopilot, and adaptive world modeling.</p>
-<div class="card">
-<label>Site UID <input id="site" value="sys_default"></label>
-<button onclick="loadPath('forecast?hours=72')">Forecast</button>
-<button onclick="loadPath('digital-twin')">Digital twin</button>
-<button onclick="loadPath('action-plan?hours=72')">Action plan</button>
-<button onclick="loadPath('autopilot/plan?hours=72')">Shadow plan</button>
-<button onclick="loadPath('autopilot/scorecard')">Autopilot scorecard</button>
-<button onclick="loadPath('autopilot/actions?limit=50')">Shadow ledger</button>
-<button onclick="loadPath('autopilot/epochs')">Model epochs</button>
-<button onclick="loadPath('adaptive/snapshot')">Adaptive world</button>
-<button onclick="loadPath('adaptive/weather/skill')">Weather skill</button>
-<button onclick="loadPath('adaptive/scorecard')">Adaptive scorecard</button>
-</div>
-<div class="card"><pre id="output">Select a configured site and request a view.</pre></div>
-<script>
-async function loadPath(path) {
-  const site = encodeURIComponent(document.getElementById('site').value);
-  const output = document.getElementById('output');
-  output.textContent = 'Loading…';
-  try {
-    const response = await fetch('/v1/sites/' + site + '/' + path);
-    const data = await response.json();
-    output.textContent = JSON.stringify(data, null, 2);
-  } catch (error) {
-    output.textContent = String(error);
-  }
-}
-</script>
-</main>
-</body>
-</html>"""
