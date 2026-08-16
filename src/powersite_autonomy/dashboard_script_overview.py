@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 DASHBOARD_SCRIPT_OVERVIEW = r"""function renderStatus() {
   const health = state.data.health;
   const forecast = state.data.forecast;
