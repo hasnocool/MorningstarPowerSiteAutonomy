@@ -141,7 +141,8 @@ class Storage:
     def _save_score_sync(self, score: ForecastScoreSummary, payload: str) -> None:
         with sqlite3.connect(self._path) as connection:
             connection.execute(
-                "INSERT INTO forecast_scores(site_uid, generated_at, payload_json) VALUES (?, ?, ?)",
+                "INSERT INTO forecast_scores(site_uid, generated_at, payload_json) "
+                "VALUES (?, ?, ?)",
                 (score.site_uid, score.generated_at.isoformat(), payload),
             )
 
