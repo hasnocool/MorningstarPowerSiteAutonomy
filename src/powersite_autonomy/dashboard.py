@@ -3,7 +3,6 @@ from __future__ import annotations
 from .dashboard_css import DASHBOARD_CSS
 from .dashboard_script import DASHBOARD_SCRIPT
 
-
 DASHBOARD_TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
