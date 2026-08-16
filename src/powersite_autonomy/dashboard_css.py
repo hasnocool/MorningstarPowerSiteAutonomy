@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 DASHBOARD_CSS = """:root {
   --bg: #0b1015;
   --panel: #121a22;
