@@ -6,6 +6,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+from .fleet import FleetObservation
 from .models import ForecastScoreSummary, ForecastSummary, ScenarioResult, SiteCalibration
 
 _SCHEMA = """
@@ -42,6 +43,18 @@ CREATE TABLE IF NOT EXISTS forecast_scores (
 );
 CREATE INDEX IF NOT EXISTS idx_forecast_scores_site_time
     ON forecast_scores(site_uid, generated_at DESC);
+CREATE TABLE IF NOT EXISTS fleet_observations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_uid TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    key TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    payload_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_fleet_observations_kind_key
+    ON fleet_observations(kind, key, observed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fleet_observations_site_time
+    ON fleet_observations(site_uid, observed_at DESC);
 """
 
 
@@ -98,8 +111,7 @@ class Storage:
         with sqlite3.connect(self._path) as connection:
             connection.execute(
                 "INSERT INTO calibrations(site_uid, generated_at, calibration_version, "
-                "payload_json) "
-                "VALUES (?, ?, ?, ?)",
+                "payload_json) VALUES (?, ?, ?, ?)",
                 (
                     calibration.site_uid,
                     calibration.generated_at.isoformat(),
@@ -133,6 +145,65 @@ class Storage:
                 "VALUES (?, ?, ?)",
                 (score.site_uid, score.generated_at.isoformat(), payload),
             )
+
+    async def save_fleet_observations(self, observations: list[FleetObservation]) -> None:
+        if not observations:
+            return
+        async with self._write_lock:
+            await asyncio.to_thread(self._save_fleet_observations_sync, observations)
+
+    def _save_fleet_observations_sync(self, observations: list[FleetObservation]) -> None:
+        rows = [
+            (
+                observation.site_uid,
+                observation.kind,
+                observation.key,
+                observation.observed_at.isoformat(),
+                observation.model_dump_json(),
+            )
+            for observation in observations
+        ]
+        with sqlite3.connect(self._path) as connection:
+            connection.executemany(
+                "INSERT INTO fleet_observations(site_uid, kind, key, observed_at, payload_json) "
+                "VALUES (?, ?, ?, ?, ?)",
+                rows,
+            )
+
+    async def fleet_observations(
+        self,
+        *,
+        kind: str | None = None,
+        key: str | None = None,
+        limit: int = 1000,
+    ) -> list[FleetObservation]:
+        rows = await asyncio.to_thread(self._fleet_observations_sync, kind, key, limit)
+        return [FleetObservation.model_validate_json(row) for row in rows]
+
+    def _fleet_observations_sync(
+        self,
+        kind: str | None,
+        key: str | None,
+        limit: int,
+    ) -> list[str]:
+        bounded = max(1, min(limit, 10000))
+        clauses: list[str] = []
+        params: list[object] = []
+        if kind is not None:
+            clauses.append("kind = ?")
+            params.append(kind)
+        if key is not None:
+            clauses.append("key = ?")
+            params.append(key)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        params.append(bounded)
+        with sqlite3.connect(self._path) as connection:
+            rows = connection.execute(
+                f"SELECT payload_json FROM fleet_observations {where} "
+                "ORDER BY observed_at DESC LIMIT ?",
+                params,
+            ).fetchall()
+        return [row[0] for row in rows]
 
     async def recent_forecasts(self, site_uid: str, limit: int = 20) -> list[dict]:
         rows = await asyncio.to_thread(
