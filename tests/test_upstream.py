@@ -1,3 +1,4 @@
+# tests/test_upstream.py
 from powersite_autonomy.upstream import _find_metric
 
 

@@ -1,3 +1,4 @@
+# tests/test_forecast.py
 from datetime import UTC, datetime, timedelta
 
 from powersite_autonomy.forecast import ForecastInputs, build_forecast
@@ -23,6 +24,7 @@ def weather(hours: int = 24) -> list[WeatherHour]:
             timestamp=start + timedelta(hours=i),
             shortwave_radiation_w_m2=700 if 7 <= i <= 18 else 0,
             cloud_cover_percent=20,
+            temperature_c=22,
         )
         for i in range(hours)
     ]
@@ -41,8 +43,10 @@ def test_forecast_is_bounded_and_probabilistic() -> None:
     )
     assert len(result.points) == 24
     assert 0 <= result.reserve_breach_probability <= 1
+    assert 0 <= result.unmet_load_probability <= 1
     assert all(0 <= point.soc_p10_percent <= 100 for point in result.points)
     assert result.expected_solar_wh > 0
+    assert result.expected_surplus_wh >= 0
 
 
 def test_additional_load_increases_risk_or_reduces_soc() -> None:
