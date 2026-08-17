@@ -111,6 +111,8 @@ class MorningstarClient:
             timeout=httpx.Timeout(timeout_seconds),
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
         )
+        self._system_metric_names: frozenset[str] | None = None
+        self._system_metric_names_lock = asyncio.Lock()
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -182,6 +184,29 @@ class MorningstarClient:
             },
         )
 
+    async def system_metric_names(self) -> frozenset[str] | None:
+        """Return the API's normalized system-history metric names when advertised."""
+        if self._system_metric_names is not None:
+            return self._system_metric_names
+
+        async with self._system_metric_names_lock:
+            if self._system_metric_names is not None:
+                return self._system_metric_names
+            response = await self._client.get("/v1/systems/metrics/catalog")
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, list):
+                return None
+            names = frozenset(
+                str(item["name"])
+                for item in payload
+                if isinstance(item, dict) and item.get("name")
+            )
+            self._system_metric_names = names
+            return names
+
     async def get_history(
         self,
         site_uid: str,
@@ -193,9 +218,9 @@ class MorningstarClient:
     ) -> list[HistoryPoint]:
         params: dict[str, str] = {"metric": metric, "resolution": resolution}
         if start is not None:
-            params["start"] = start.astimezone(UTC).isoformat()
+            params["from"] = start.astimezone(UTC).isoformat()
         if end is not None:
-            params["end"] = end.astimezone(UTC).isoformat()
+            params["to"] = end.astimezone(UTC).isoformat()
         response = await self._client.get(f"/v1/systems/{site_uid}/history", params=params)
         if response.status_code in {400, 404, 422}:
             return []
@@ -211,6 +236,8 @@ class MorningstarClient:
         start: datetime | None = None,
         end: datetime | None = None,
     ) -> dict[str, list[HistoryPoint]]:
+        supported = await self.system_metric_names()
+        requested = metrics if supported is None else tuple(name for name in metrics if name in supported)
         results = await asyncio.gather(
             *(
                 self.get_history(
@@ -220,10 +247,12 @@ class MorningstarClient:
                     start=start,
                     end=end,
                 )
-                for metric in metrics
+                for metric in requested
             )
         )
-        return dict(zip(metrics, results, strict=True))
+        bundle = {metric: [] for metric in metrics}
+        bundle.update(dict(zip(requested, results, strict=True)))
+        return bundle
 
     async def get_component_graph(self, site_uid: str) -> dict:
         return await self._get_optional_json(f"/v1/systems/{site_uid}/component-graph")
